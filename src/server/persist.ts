@@ -1,5 +1,4 @@
 import type { PoolClient } from "pg";
-import { pool } from "@/db";
 import type { Save } from "@/game/game";
 import type { DB, Listing, LogEntry, ReportRow, UserRow } from "@/server/engine";
 
@@ -8,33 +7,7 @@ import type { DB, Listing, LogEntry, ReportRow, UserRow } from "@/server/engine"
  * Каждая сущность — отдельная строка (jsonb). При сохранении пишутся только строки, которые изменились.
  */
 
-const SCHEMA_SQL = `
-create table if not exists users (id integer primary key, data jsonb not null);
-create table if not exists saves (user_id integer primary key, data jsonb not null);
-create table if not exists listings (id integer primary key, data jsonb not null);
-create table if not exists likes (target_id integer primary key, data jsonb not null);
-create table if not exists reports (id integer primary key, data jsonb not null);
-create table if not exists logs (id integer primary key, user_id integer not null, data jsonb not null);
-create index if not exists logs_user_idx on logs (user_id);
-create table if not exists meta (key text primary key, value jsonb not null);
-create table if not exists sessions (token text primary key, user_id integer not null, created_at timestamp not null default now());
-`;
-
-const g = globalThis as typeof globalThis & { __crystallizedSchema?: Promise<void> };
-
-/** Создаёт таблицы, если их ещё нет (на случай, если `drizzle-kit push` не запускали) */
-export function ensureSchema(): Promise<void> {
-  if (!g.__crystallizedSchema) {
-    g.__crystallizedSchema = pool
-      .query(SCHEMA_SQL)
-      .then(() => undefined)
-      .catch((e) => {
-        g.__crystallizedSchema = undefined;
-        throw e;
-      });
-  }
-  return g.__crystallizedSchema;
-}
+// Схема БД задаётся в db/schema.ts; миграции из netlify/database/migrations применяет Netlify при деплое.
 
 const LOG_KEEP = 6000;
 
