@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
-import { pool } from "@/db";
+import { getPool } from "../../db";
 import * as engine from "@/server/engine";
-import { ensureSchema, loadDB, loadUserLogs, saveDB } from "@/server/persist";
+import { loadDB, loadUserLogs, saveDB } from "@/server/persist";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const HANDLERS: Record<string, (...args: any[]) => unknown> = {
@@ -59,9 +59,8 @@ export interface RpcOutcome {
 }
 
 export async function executeRpc(fn: string, args: unknown[], token: string | null): Promise<RpcOutcome> {
-  await ensureSchema();
   const readOnly = READ_ONLY.has(fn);
-  const c = await pool.connect();
+  const c = await getPool().connect();
   try {
     await c.query(readOnly ? "begin isolation level repeatable read read only" : "begin");
     // все изменяющие действия выполняются строго по очереди — игроки не могут «обогнать» друг друга

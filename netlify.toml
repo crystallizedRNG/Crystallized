@@ -1,0 +1,10 @@
+# Base directory: repository root (empty)
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Server-side code: the Next.js route handlers in src/app/api (/api/rpc, /api/health)
+# are bundled into Netlify Functions automatically by Netlify's Next.js runtime.
+# Any standalone functions placed in netlify/functions are deployed alongside them.
+[functions]
+  directory = "netlify/functions"
