@@ -2,8 +2,6 @@
  * Игровой движок (сервер). Вся логика игры, рынка, подарков, крафта и админ-меню выполняется здесь,
  * а данные лежат в PostgreSQL. Браузер обращается к нему через /api/rpc (см. src/lib/store.ts).
  */
-import { randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
-import { AsyncLocalStorage } from "node:async_hooks";
 import { ACCENTS, type PublicUser } from "@/game/accents";
 import {
   ALL_MODELS,
@@ -117,14 +115,22 @@ export const USERNAME_TAKEN = "Это имя уже занято. Выберит
  * Состояние текущего запроса. Перед выполнением действия сервер загружает данные из PostgreSQL,
  * а после — записывает изменения (всё внутри одной транзакции с блокировкой, чтобы игроки не мешали друг другу).
  */
-const als = new AsyncLocalStorage<DB>();
-export const runWithDb = <T>(db: DB, fn: () => T): T => als.run(db, fn);
+let currentDb: DB | null = null;
+export const runWithDb = <T>(db: DB, fn: () => T): T => {
+  const prev = currentDb;
+  currentDb = db;
+  try {
+    return fn();
+  } finally {
+    currentDb = prev;
+  }
+};
 
 function read(): DB {
-  const db = als.getStore();
-  if (!db) throw new Error("Нет контекста базы данных");
-  return db;
+  if (!currentDb) throw new Error("Нет контекста базы данных");
+  return currentDb;
 }
+
 
 /** Запись происходит в конце запроса (см. src/server/rpc.ts) */
 function write(_db: DB) {
@@ -156,24 +162,27 @@ export function validatePassword(raw: unknown): Result<{ value: string }> {
 /* ---------- пароли ---------- */
 
 function randomSalt() {
-  return randomBytes(16).toString("hex");
-}
-
-function scryptAsync(password: string, salt: string): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    scryptCb(password.normalize("NFKC"), salt, 64, { N: 16384, r: 8, p: 1 }, (err, key) => (err ? reject(err) : resolve(key)));
-  });
+  const arr = new Uint8Array(16);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 async function hashPassword(password: string, salt: string): Promise<string> {
-  return (await scryptAsync(password, salt)).toString("hex");
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", enc.encode(password.normalize("NFKC")), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: enc.encode(salt), iterations: 50000, hash: "SHA-256" },
+    key,
+    256,
+  );
+  return Array.from(new Uint8Array(bits), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 async function samePassword(password: string, salt: string, hash: string): Promise<boolean> {
-  const a = Buffer.from(await hashPassword(password, salt), "hex");
-  const b = Buffer.from(hash, "hex");
-  return a.length === b.length && timingSafeEqual(a, b);
+  return (await hashPassword(password, salt)) === hash;
 }
+
+
 
 /* ---------- помощники ---------- */
 
