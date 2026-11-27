@@ -56,7 +56,6 @@ const HEADERS = {
   "Content-Type": "application/json",
 };
 
-
 async function sbGet<T>(path: string): Promise<T[]> {
   const res = await fetch(`${SB_URL}/${path}`, { headers: HEADERS });
   if (!res.ok) throw new Error(await res.text());
