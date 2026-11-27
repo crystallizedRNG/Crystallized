@@ -1,3 +1,8 @@
+/**
+ * Клиент онлайн-игры для статического экспорта (GitHub Pages).
+ * Все данные (аккаунты, сохранения, рынок, лайки, жалобы, логи, сессии) хранятся напрямую в Supabase REST API,
+ * а игровая логика выполняется в браузере через src/server/engine.ts.
+ */
 import type { Collectible } from "@/game/collectibles";
 import type { OpenResult, Save } from "@/game/game";
 import * as engine from "@/server/engine";
@@ -47,7 +52,7 @@ export type {
 export const REPORT_MAX = 1000;
 const OFFLINE = "Нет связи с базой данных. Проверьте интернет и попробуйте ещё раз.";
 
-const SB_URL = "https://supabase.co";
+const SB_URL = "https://puovoozwbqkzsnriuons.supabase.co/rest/v1";
 const SB_KEY = "sb_publishable__ugLRw6L8zL_VPE0EhSMTA_fFA0GGQd";
 const TOKEN_KEY = "crystallized_session_token";
 
@@ -125,6 +130,7 @@ function takeSnap(db: DB): Snap {
   }
   return s;
 }
+
 async function loadState(session: number | null): Promise<{ db: DB; snap: Snap }> {
   const [users, saves, listings, likes, reports, meta] = await Promise.all([
     sbGet<{ id: number; data: UserRow }>("users?select=id,data&order=id.asc"),
@@ -155,7 +161,7 @@ async function loadState(session: number | null): Promise<{ db: DB; snap: Snap }
 
   if (!m.nextLogId) {
     const top = await sbGet<{ id: number }>("logs?select=id&order=id.desc&limit=1");
-    db.nextLogId = (top?.id ?? 0) + 1;
+    db.nextLogId = (top[0]?.id ?? 0) + 1;
   }
 
   return { db, snap: takeSnap(db) };
@@ -250,14 +256,14 @@ async function call<T>(fn: string, ...args: unknown[]): Promise<T | undefined> {
       let session: number | null = null;
       if (token) {
         const s = await sbGet<{ user_id: number }>(`sessions?select=user_id&token=eq.${encodeURIComponent(token)}`);
-        session = s?.user_id ?? null;
+        session = s[0]?.user_id ?? null;
         if (!session) setToken(null);
       }
 
       const { db, snap } = await loadState(session);
       if (fn === "adminUserLogs") {
         const rows = await sbGet<{ data: LogEntry }>(
-          `logs?select=data&user_id=eq.${Number(args)}&order=id.desc&limit=200`,
+          `logs?select=data&user_id=eq.${Number(args[0])}&order=id.desc&limit=200`,
         );
         db.logs = rows.map((r) => r.data).reverse();
       }
