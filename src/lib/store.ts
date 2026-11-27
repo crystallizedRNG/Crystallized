@@ -155,7 +155,7 @@ async function loadState(session: number | null): Promise<{ db: DB; snap: Snap }
 
   if (!m.nextLogId) {
     const top = await sbGet<{ id: number }>("logs?select=id&order=id.desc&limit=1");
-    db.nextLogId = (top[0]?.id ?? 0) + 1;
+    db.nextLogId = (top?.id ?? 0) + 1;
   }
 
   return { db, snap: takeSnap(db) };
@@ -250,14 +250,14 @@ async function call<T>(fn: string, ...args: unknown[]): Promise<T | undefined> {
       let session: number | null = null;
       if (token) {
         const s = await sbGet<{ user_id: number }>(`sessions?select=user_id&token=eq.${encodeURIComponent(token)}`);
-        session = s[0]?.user_id ?? null;
+        session = s?.user_id ?? null;
         if (!session) setToken(null);
       }
 
       const { db, snap } = await loadState(session);
       if (fn === "adminUserLogs") {
         const rows = await sbGet<{ data: LogEntry }>(
-          `logs?select=data&user_id=eq.${Number(args[0])}&order=id.desc&limit=200`,
+          `logs?select=data&user_id=eq.${Number(args)}&order=id.desc&limit=200`,
         );
         db.logs = rows.map((r) => r.data).reverse();
       }
