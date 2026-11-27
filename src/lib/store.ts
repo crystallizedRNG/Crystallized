@@ -53,9 +53,9 @@ const TOKEN_KEY = "crystallized_session_token";
 
 const HEADERS = {
   apikey: SB_KEY,
-  Authorization: `Bearer ${SB_KEY}`,
   "Content-Type": "application/json",
 };
+
 
 async function sbGet<T>(path: string): Promise<T[]> {
   const res = await fetch(`${SB_URL}/${path}`, { headers: HEADERS });
